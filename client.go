@@ -70,18 +70,18 @@ func (client *SMSClient) CheckBalance() (*BalanceResponse, error) {
 }
 
 // SendSMS sends a single SMS
-func (client *SMSClient) SendSMS(phoneNumber, message string) (*SingleSMSResponse, error) {
-	return client.SendSMSWithOptions(phoneNumber, message, "", "")
+func (client *SMSClient) SendSMS(senderID, phoneNumber, message string) (*SingleSMSResponse, error) {
+	return client.SendSMSWithOptions(senderID, phoneNumber, message, "", "")
 }
 
 // SendSMSWithOptions sends a single SMS with additional options
-func (client *SMSClient) SendSMSWithOptions(phoneNumber, message, scheduledAt, showError string) (*SingleSMSResponse, error) {
+func (client *SMSClient) SendSMSWithOptions(senderID, phoneNumber, message, scheduledAt, showError string) (*SingleSMSResponse, error) {
 
 	apiURL := fmt.Sprintf("%s?user=%s&pwd=%s&senderid=%s&mobileno=%s&msgtext=%s&CountryCode=%s",
 		client.config.SendSMSURL,
 		client.config.UserID,
 		client.config.Password,
-		url.QueryEscape(client.config.SenderID),
+		url.QueryEscape(senderID),
 		client.formatMobileNumber(phoneNumber),
 		url.QueryEscape(message),
 		client.config.CountryCode,
@@ -103,12 +103,12 @@ func (client *SMSClient) SendSMSWithOptions(phoneNumber, message, scheduledAt, s
 }
 
 // SendBulkSMS sends SMS to multiple numbers
-func (client *SMSClient) SendBulkSMS(phoneNumbers []string, message string) (*BulkSMSResponse, error) {
-	return client.SendBulkSMSWithOptions(phoneNumbers, message, "", "")
+func (client *SMSClient) SendBulkSMS(senderID string, phoneNumbers []string, message string) (*BulkSMSResponse, error) {
+	return client.SendBulkSMSWithOptions(senderID, phoneNumbers, message, "", "")
 }
 
 // SendBulkSMSWithOptions sends bulk SMS with options
-func (client *SMSClient) SendBulkSMSWithOptions(phoneNumbers []string, message, scheduledAt, showError string) (*BulkSMSResponse, error) {
+func (client *SMSClient) SendBulkSMSWithOptions(senderID string, phoneNumbers []string, message, scheduledAt, showError string) (*BulkSMSResponse, error) {
 
 	if len(phoneNumbers) == 0 {
 		return nil, fmt.Errorf("no mobile numbers provided")
@@ -125,7 +125,7 @@ func (client *SMSClient) SendBulkSMSWithOptions(phoneNumbers []string, message, 
 		client.config.SendSMSCommaURL,
 		client.config.UserID,
 		client.config.Password,
-		url.QueryEscape(client.config.SenderID),
+		url.QueryEscape(senderID),
 		mobileNoStr,
 		url.QueryEscape(message),
 		client.config.CountryCode,
@@ -214,12 +214,12 @@ func (client *SMSClient) SendBulkSMSWithOptions(phoneNumbers []string, message, 
 }
 
 // SendUnicodeSMS sends Unicode SMS (for Arabic, etc.)
-func (client *SMSClient) SendUnicodeSMS(phoneNumber, message string) (*SingleSMSResponse, error) {
+func (client *SMSClient) SendUnicodeSMS(senderID, phoneNumber, message string) (*SingleSMSResponse, error) {
 	apiURL := fmt.Sprintf("%s?user=%s&pwd=%s&senderid=%s&mobileno=%s&msgtext=%s&CountryCode=%s",
 		client.config.SendSMSURL,
 		client.config.UserID,
 		client.config.Password,
-		url.QueryEscape(client.config.SenderID),
+		url.QueryEscape(senderID),
 		client.formatMobileNumber(phoneNumber),
 		url.QueryEscape(message),
 		client.config.CountryCode,
@@ -299,7 +299,7 @@ func (client *SMSClient) GetBulkDeliveryStatus(messageIDs []string) ([]*Delivery
 }
 
 // SendXMLSMS sends SMS using XML API
-func (client *SMSClient) SendXMLSMS(phoneNumber, message, language string) (string, error) {
+func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language string) (string, error) {
 	xmlBody := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <request>
     <user>%s</user>
@@ -317,7 +317,7 @@ func (client *SMSClient) SendXMLSMS(phoneNumber, message, language string) (stri
 		client.config.Password,
 		client.formatMobileNumber(phoneNumber),
 		message,
-		client.config.SenderID,
+		senderID,
 		language,
 	)
 

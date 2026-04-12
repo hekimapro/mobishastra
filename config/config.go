@@ -11,7 +11,6 @@ type Config struct {
 	// API Credentials
 	UserID   string
 	Password string
-	SenderID string
 
 	// API Endpoints
 	SendSMSURL        string
@@ -37,7 +36,6 @@ func LoadConfig() *Config {
 	return &Config{
 		UserID:            getEnv("SMS_USER_ID", ""),
 		Password:          getEnv("SMS_PASSWORD", ""),
-		SenderID:          getEnv("SMS_SENDER_ID", ""),
 		SendSMSURL:        getEnv("SMS_SEND_URL", "https://mshastra.com/sendurl.aspx"),
 		SendSMSCommaURL:   getEnv("SMS_SEND_COMM_URL", "https://mshastra.com/sendurlcomma.aspx"),
 		CheckBalanceURL:   getEnv("SMS_BALANCE_URL", "https://mshastra.com/balance.aspx"),
