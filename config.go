@@ -1,4 +1,4 @@
-package config
+package mobishastra
 
 import (
 	"log"

@@ -8,16 +8,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/hekimapro/mobishastra/config"
 )
 
 type SMSClient struct {
-	config     *config.Config
+	config     *Config
 	httpClient *http.Client
 }
 
-func NewSMSClient(cfg *config.Config) *SMSClient {
+func NewSMSClient(cfg *Config) *SMSClient {
 	return &SMSClient{
 		config: cfg,
 		httpClient: &http.Client{

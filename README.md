@@ -60,12 +60,11 @@ import (
     "log"
 
     "github.com/hekimapro/mobishastra"
-    "github.com/hekimapro/mobishastra/config"
 )
 
 func main() {
     // Load configuration
-    cfg := config.LoadConfig()
+    cfg := mobishastra.LoadConfig()
 
     // Create SMS client
     client := mobishastra.NewSMSClient(cfg)
@@ -609,11 +608,11 @@ package mobishastra
 
 import (
     "testing"
-    "github.com/hekimapro/mobishastra/config"
+    "github.com/hekimapro/mobishastra"
 )
 
 func TestSendSMS(t *testing.T) {
-    cfg := &config.Config{
+    cfg := &mobishastra.Config{
         UserID:   "test_user",
         Password: "test_pass",
         CountryCode: "ALL",
