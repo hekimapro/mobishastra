@@ -1,6 +1,7 @@
 package mobishastra
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,41 @@ func NewSMSClient(cfg *Config) *SMSClient {
 	}
 }
 
+// logRequest logs request payload in JSON format
+func (client *SMSClient) logRequest(method, url string, body io.Reader) {
+	logData := map[string]interface{}{
+		"method": method,
+		"url":    url,
+		"type":   "request",
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	if body != nil {
+		bodyBytes, _ := io.ReadAll(body)
+		logData["body"] = string(bodyBytes)
+		// Restore body for actual request
+		if r, ok := body.(io.ReadCloser); ok {
+			r.Close()
+		}
+	}
+
+	jsonLog, _ := json.Marshal(logData)
+	fmt.Println(string(jsonLog))
+}
+
+// logResponse logs response payload in JSON format
+func (client *SMSClient) logResponse(resp *http.Response, body []byte) {
+	logData := map[string]interface{}{
+		"status_code": resp.StatusCode,
+		"body":        string(body),
+		"type":        "response",
+		"timestamp":   time.Now().Format(time.RFC3339),
+	}
+
+	jsonLog, _ := json.Marshal(logData)
+	fmt.Println(string(jsonLog))
+}
+
 // Authenticate checks if credentials are valid by checking balance
 func (client *SMSClient) Authenticate() (*BalanceResponse, error) {
 	return client.CheckBalance()
@@ -33,6 +69,9 @@ func (client *SMSClient) Authenticate() (*BalanceResponse, error) {
 func (client *SMSClient) CheckBalance() (*BalanceResponse, error) {
 
 	apiURL := fmt.Sprintf("%s?user=%s&pwd=%s", client.config.CheckBalanceURL, client.config.UserID, client.config.Password)
+
+	// Log request
+	client.logRequest("GET", apiURL, nil)
 
 	response, err := client.httpClient.Get(apiURL)
 	if err != nil {
@@ -44,6 +83,9 @@ func (client *SMSClient) CheckBalance() (*BalanceResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
+
+	// Log response
+	client.logResponse(response, body)
 
 	balanceString := strings.TrimSpace(string(body))
 
@@ -97,7 +139,51 @@ func (client *SMSClient) SendSMSWithOptions(senderID, phoneNumber, message, sche
 		apiURL += fmt.Sprintf("&ShowError=%s", showError)
 	}
 
-	return client.executeRequest(apiURL)
+	// Log request
+	client.logRequest("GET", apiURL, nil)
+
+	resp, err := client.httpClient.Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("SMS request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Log response
+	client.logResponse(resp, body)
+
+	responseText := strings.TrimSpace(string(body))
+
+	// Parse response
+	smsResp := &SingleSMSResponse{
+		ResponseText: responseText,
+	}
+
+	// Check for success
+	if strings.Contains(responseText, "Send Successful") {
+		smsResp.Success = true
+		smsResp.ResponseCode = "000"
+	} else if strings.Contains(responseText, ",") {
+		// DLR format with message ID
+		parts := strings.Split(responseText, ",")
+		if len(parts) >= 1 {
+			smsResp.MessageID = strings.TrimSpace(parts[0])
+			if len(parts) >= 2 {
+				smsResp.ResponseText = strings.TrimSpace(parts[1])
+			}
+		}
+		smsResp.Success = true
+	} else {
+		smsResp.Success = false
+		smsResp.Error = responseText
+		smsResp.ResponseCode = client.extractErrorCode(responseText)
+	}
+
+	return smsResp, nil
 }
 
 // SendBulkSMS sends SMS to multiple numbers
@@ -141,6 +227,9 @@ func (client *SMSClient) SendBulkSMSWithOptions(senderID string, phoneNumbers []
 		apiURL += fmt.Sprintf("&ShowError=%s", showError)
 	}
 
+	// Log request
+	client.logRequest("GET", apiURL, nil)
+
 	resp, err := client.httpClient.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("bulk SMS request failed: %w", err)
@@ -151,6 +240,9 @@ func (client *SMSClient) SendBulkSMSWithOptions(senderID string, phoneNumbers []
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
+
+	// Log response
+	client.logResponse(resp, body)
 
 	responseText := strings.TrimSpace(string(body))
 
@@ -213,17 +305,7 @@ func (client *SMSClient) SendBulkSMSWithOptions(senderID string, phoneNumbers []
 
 // SendUnicodeSMS sends Unicode SMS (for Arabic, etc.)
 func (client *SMSClient) SendUnicodeSMS(senderID, phoneNumber, message string) (*SingleSMSResponse, error) {
-	apiURL := fmt.Sprintf("%s?user=%s&pwd=%s&senderid=%s&mobileno=%s&msgtext=%s&CountryCode=%s",
-		client.config.SendSMSURL,
-		client.config.UserID,
-		client.config.Password,
-		url.QueryEscape(senderID),
-		client.formatMobileNumber(phoneNumber),
-		url.QueryEscape(message),
-		client.config.CountryCode,
-	)
-
-	return client.executeRequest(apiURL)
+	return client.SendSMSWithOptions(senderID, phoneNumber, message, "", "")
 }
 
 // GetDeliveryStatus checks delivery status of a message
@@ -235,6 +317,9 @@ func (client *SMSClient) GetDeliveryStatus(messageID string) (*DeliveryStatusRes
 		messageID,
 	)
 
+	// Log request
+	client.logRequest("GET", apiURL, nil)
+
 	resp, err := client.httpClient.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("DLR status request failed: %w", err)
@@ -245,6 +330,9 @@ func (client *SMSClient) GetDeliveryStatus(messageID string) (*DeliveryStatusRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to read DLR response: %w", err)
 	}
+
+	// Log response
+	client.logResponse(resp, body)
 
 	responseStr := strings.TrimSpace(string(body))
 
@@ -326,6 +414,9 @@ func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language str
 
 	req.Header.Set("Content-Type", "application/xml")
 
+	// Log request
+	client.logRequest("POST", "https://mshastra.com/sendsms_api_xml.aspx", strings.NewReader(xmlBody))
+
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return "", err
@@ -337,13 +428,18 @@ func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language str
 		return "", err
 	}
 
+	// Log response
+	client.logResponse(resp, body)
+
 	return string(body), nil
 }
 
 // Helper methods
+func (client *SMSClient) executeRequest(apiURL string) (*SingleSMSResponse, error) {
+	// Log request
+	client.logRequest("GET", apiURL, nil)
 
-func (c *SMSClient) executeRequest(apiURL string) (*SingleSMSResponse, error) {
-	resp, err := c.httpClient.Get(apiURL)
+	resp, err := client.httpClient.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("SMS request failed: %w", err)
 	}
@@ -353,6 +449,9 @@ func (c *SMSClient) executeRequest(apiURL string) (*SingleSMSResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
+
+	// Log response
+	client.logResponse(resp, body)
 
 	responseText := strings.TrimSpace(string(body))
 
@@ -378,7 +477,7 @@ func (c *SMSClient) executeRequest(apiURL string) (*SingleSMSResponse, error) {
 	} else {
 		smsResp.Success = false
 		smsResp.Error = responseText
-		smsResp.ResponseCode = c.extractErrorCode(responseText)
+		smsResp.ResponseCode = client.extractErrorCode(responseText)
 	}
 
 	return smsResp, nil
