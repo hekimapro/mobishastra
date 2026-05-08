@@ -511,15 +511,16 @@ func (client *SMSClient) GetDeliveryStatus(messageID string) (*DeliveryStatusRes
 
 	status := strings.ToLower(strings.TrimSpace(parts[1]))
 
-	switch status {
-	case "delivrd":
+	if status == "delivrd" {
 		status = "delivered"
-	case "dlr not recv":
+	} else if status == "dlr_not_recv" {
 		status = "pending"
-	case "undeliv":
+	} else if strings.Contains(status, "undeliv") {
 		status = "undelivered"
-	case "boolean breakconnection":
-		status = "unknown"
+	} else if strings.Contains(status, "expired") {
+		status = "expired"
+	} else {
+		status = "failed"
 	}
 
 	isDelivered := status == "delivered"
