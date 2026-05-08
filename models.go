@@ -106,12 +106,3 @@ var ErrorCodes = map[string]string{
 	"012": "Sender Id more than 13 Chars",
 	"013": "Server Error",
 }
-
-// DLR Status Mapping
-var DeliveryStatusMap = map[string]string{
-	"DELIVERED": "Delivered",
-	"PENDING":   "Pending",
-	"EXPIRED":   "Expired",
-	"FAILED":    "Failed",
-	"REJECTED":  "Rejected",
-}

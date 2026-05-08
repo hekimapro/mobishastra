@@ -27,7 +27,7 @@ func NewSMSClient(cfg *Config) *SMSClient {
 
 // logRequest logs request payload in JSON format
 func (client *SMSClient) logRequest(method, url string, body io.Reader) {
-	logData := map[string]interface{}{
+	logData := map[string]any{
 		"method":    method,
 		"url":       url,
 		"type":      "request",
@@ -39,7 +39,7 @@ func (client *SMSClient) logRequest(method, url string, body io.Reader) {
 		bodyStr := string(bodyBytes)
 
 		// Try to parse as JSON if it looks like JSON
-		var jsonBody interface{}
+		var jsonBody any
 		if strings.Contains(bodyStr, "{") || strings.Contains(bodyStr, "<") {
 			// For XML or JSON, try to parse
 			if strings.Contains(bodyStr, "{") {
@@ -70,10 +70,10 @@ func (client *SMSClient) logResponse(resp *http.Response, body []byte) {
 	bodyStr := string(body)
 
 	// Try to parse response body as JSON
-	var jsonBody interface{}
+	var jsonBody any
 	parseErr := json.Unmarshal(body, &jsonBody)
 
-	logData := map[string]interface{}{
+	logData := map[string]any{
 		"status_code": resp.StatusCode,
 		"type":        "response",
 		"timestamp":   time.Now().Format(time.RFC3339),
@@ -96,11 +96,11 @@ func (client *SMSClient) logResponse(resp *http.Response, body []byte) {
 }
 
 // parseResponseToJSON converts SMS API response to JSON format
-func (client *SMSClient) parseResponseToJSON(response string) interface{} {
+func (client *SMSClient) parseResponseToJSON(response string) any {
 	response = strings.TrimSpace(response)
 
 	if strings.Contains(response, "Send Successful") {
-		return map[string]interface{}{
+		return map[string]any{
 			"status":  "success",
 			"message": response,
 			"code":    "000",
@@ -108,44 +108,44 @@ func (client *SMSClient) parseResponseToJSON(response string) interface{} {
 	} else if strings.Contains(response, ",") {
 		parts := strings.Split(response, ",")
 		if len(parts) == 2 {
-			return map[string]interface{}{
-				"message_id":   strings.TrimSpace(parts[0]),
-				"status":       strings.TrimSpace(parts[1]),
-				"is_success":   true,
+			return map[string]any{
+				"message_id": strings.TrimSpace(parts[0]),
+				"status":     strings.TrimSpace(parts[1]),
+				"is_success": true,
 			}
 		} else if len(parts) == 3 {
-			return map[string]interface{}{
-				"message_id":   strings.TrimSpace(parts[0]),
-				"status":       strings.TrimSpace(parts[1]),
+			return map[string]any{
+				"message_id":    strings.TrimSpace(parts[0]),
+				"status":        strings.TrimSpace(parts[1]),
 				"delivery_time": strings.TrimSpace(parts[2]),
-				"is_delivered": strings.Contains(strings.ToUpper(parts[1]), "DELIVERED"),
+				"is_delivered":  strings.Contains(strings.ToUpper(parts[1]), "DELIVERED"),
 			}
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"raw_response": response,
 			"parts":        parts,
 		}
 	} else if strings.Contains(strings.ToLower(response), "invalid") {
-		return map[string]interface{}{
+		return map[string]any{
 			"status":  "error",
 			"message": response,
 			"code":    client.extractErrorCode(response),
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"raw_response": response,
 	}
 }
 
 // parseQueryParamsToJSON converts URL query parameters to JSON
-func (client *SMSClient) parseQueryParamsToJSON(urlStr string) map[string]interface{} {
+func (client *SMSClient) parseQueryParamsToJSON(urlStr string) map[string]any {
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return nil
 	}
 
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	for key, values := range parsedURL.Query() {
 		if len(values) == 1 {
 			params[key] = values[0]
@@ -174,7 +174,7 @@ func (client *SMSClient) CheckBalance() (*BalanceResponse, error) {
 	apiURL := fmt.Sprintf("%s?user=%s&pwd=%s", client.config.CheckBalanceURL, client.config.UserID, client.config.Password)
 
 	// Log request with parsed params
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"method":    "GET",
 		"url":       apiURL,
 		"type":      "request",
@@ -201,19 +201,19 @@ func (client *SMSClient) CheckBalance() (*BalanceResponse, error) {
 	balanceValue, parseErr := strconv.ParseFloat(balanceString, 64)
 
 	// Log response
-	responseLog := map[string]interface{}{
+	responseLog := map[string]any{
 		"status_code": response.StatusCode,
 		"type":        "response",
 		"timestamp":   time.Now().Format(time.RFC3339),
 	}
 
 	if parseErr == nil {
-		responseLog["body"] = map[string]interface{}{
+		responseLog["body"] = map[string]any{
 			"balance": balanceValue,
 			"credits": int(balanceValue),
 		}
 	} else {
-		responseLog["body"] = map[string]interface{}{
+		responseLog["body"] = map[string]any{
 			"raw_response": balanceString,
 			"is_error":     strings.Contains(balanceString, "Invalid"),
 		}
@@ -273,7 +273,7 @@ func (client *SMSClient) SendSMSWithOptions(senderID, phoneNumber, message, sche
 	}
 
 	// Log request with parsed params
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"method":    "GET",
 		"url":       apiURL,
 		"type":      "request",
@@ -369,7 +369,7 @@ func (client *SMSClient) SendBulkSMSWithOptions(senderID string, phoneNumbers []
 	}
 
 	// Log request with parsed params
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"method":    "GET",
 		"url":       apiURL,
 		"type":      "request",
@@ -467,7 +467,7 @@ func (client *SMSClient) GetDeliveryStatus(messageID string) (*DeliveryStatusRes
 	)
 
 	// Log request with parsed params
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"method":    "GET",
 		"url":       apiURL,
 		"type":      "request",
@@ -509,8 +509,20 @@ func (client *SMSClient) GetDeliveryStatus(messageID string) (*DeliveryStatusRes
 		dlrTime = time.Now()
 	}
 
-	status := strings.ToUpper(strings.TrimSpace(parts[1]))
-	isDelivered := status == "DELIVERED" || status == "DELIVRD"
+	status := strings.ToLower(strings.TrimSpace(parts[1]))
+
+	switch status {
+	case "delivrd":
+		status = "delivered"
+	case "dlr not recv":
+		status = "pending"
+	case "undeliv":
+		status = "undelivered"
+	case "boolean breakconnection":
+		status = "unknown"
+	}
+
+	isDelivered := status == "delivered"
 
 	return &DeliveryStatusResponse{
 		MessageID:   strings.TrimSpace(parts[0]),
@@ -565,7 +577,7 @@ func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language str
 	)
 
 	// Log request with XML body
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"method":    "POST",
 		"url":       "https://mshastra.com/sendsms_api_xml.aspx",
 		"type":      "request",
@@ -597,7 +609,7 @@ func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language str
 	}
 
 	// Log response
-	responseLog := map[string]interface{}{
+	responseLog := map[string]any{
 		"status_code": resp.StatusCode,
 		"type":        "response",
 		"timestamp":   time.Now().Format(time.RFC3339),
@@ -607,63 +619,6 @@ func (client *SMSClient) SendXMLSMS(senderID, phoneNumber, message, language str
 	fmt.Println(string(jsonLog))
 
 	return string(body), nil
-}
-
-// Helper methods
-func (client *SMSClient) executeRequest(apiURL string) (*SingleSMSResponse, error) {
-	// Log request with parsed params
-	requestLog := map[string]interface{}{
-		"method":    "GET",
-		"url":       apiURL,
-		"type":      "request",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"params":    client.parseQueryParamsToJSON(apiURL),
-	}
-	jsonLog, _ := json.Marshal(requestLog)
-	fmt.Println(string(jsonLog))
-
-	resp, err := client.httpClient.Get(apiURL)
-	if err != nil {
-		return nil, fmt.Errorf("SMS request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Log response
-	client.logResponse(resp, body)
-
-	responseText := strings.TrimSpace(string(body))
-
-	// Parse response
-	smsResp := &SingleSMSResponse{
-		ResponseText: responseText,
-	}
-
-	// Check for success
-	if strings.Contains(responseText, "Send Successful") {
-		smsResp.Success = true
-		smsResp.ResponseCode = "000"
-	} else if strings.Contains(responseText, ",") {
-		// DLR format with message ID
-		parts := strings.Split(responseText, ",")
-		if len(parts) >= 1 {
-			smsResp.MessageID = strings.TrimSpace(parts[0])
-			if len(parts) >= 2 {
-				smsResp.ResponseText = strings.TrimSpace(parts[1])
-			}
-		}
-		smsResp.Success = true
-	} else {
-		smsResp.Success = false
-		smsResp.Error = responseText
-		smsResp.ResponseCode = client.extractErrorCode(responseText)
-	}
-
-	return smsResp, nil
 }
 
 func (client *SMSClient) formatMobileNumber(phoneNumber string) string {
